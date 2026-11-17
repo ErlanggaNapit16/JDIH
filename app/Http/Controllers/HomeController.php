@@ -1,0 +1,71 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Berita;
+use App\Models\JenisPeraturan;
+use App\Models\Pengumuman;
+use App\Models\Peraturan;
+
+class HomeController extends Controller
+{
+    public function index()
+    {
+        $activeTab = request('tab', 'terbaru');
+
+        // 1. BERITA TERBARU (3 items)
+        $beritas = Berita::latest()->take(3)->get();
+
+        // 2. PENGUMUMAN TERBARU (4 items)
+        $pengumumans = Pengumuman::latest('tanggal_upload')->take(4)->get();
+
+        // 3. JENIS PRODUK HUKUM DINAMIS DENGAN TOTAL DOKUMEN (Requirement #4)
+        $jenisPeraturans = JenisPeraturan::where('is_active', true)
+            ->withCount('peraturans')
+            ->orderBy('urutan')
+            ->get();
+
+        // 4. PRODUK HUKUM TERBARU / TERPOPULER SESUAI TAB PILIHAN (DIBATASI 3 ITEM TERBAIK)
+        $docQuery = Peraturan::with('jenisPeraturan');
+        if ($activeTab === 'populer') {
+            $produkHukumTerbaru = $docQuery->orderByDesc('view_count')->orderByDesc('download_count')->take(3)->get();
+        } else {
+            $produkHukumTerbaru = $docQuery->orderByDesc('tanggal_penetapan')->orderByDesc('tahun')->orderByDesc('created_at')->take(3)->get();
+        }
+
+        // 5. TOTAL STATISTIK DOKUMEN
+        $totalDokumen = Peraturan::count();
+
+        // 6. LIST TAHUN UNTUK FILTER HERO SEARCH BAR (Requirement #1)
+        $tahunList = Peraturan::whereNotNull('tahun')
+            ->distinct()
+            ->orderBy('tahun', 'desc')
+            ->pluck('tahun');
+
+        return view('user.home', compact(
+            'beritas',
+            'pengumumans',
+            'jenisPeraturans',
+            'produkHukumTerbaru',
+            'totalDokumen',
+            'tahunList',
+            'activeTab'
+        ));
+    }
+
+    /**
+     * Tampilkan Halaman Sejarah (Profil)
+     */
+    public function sejarah()
+    {
+        return view('user.sejarah');
+    }
+
+    /**
+     * Tampilkan Halaman Kontak (Profil)
+     */
+    public function kontak()
+    {
+        return view('user.kontak');
+    }
+}
